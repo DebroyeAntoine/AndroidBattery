@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'dart:io';
 
 import 'package:battery_plus/battery_plus.dart';
 import 'package:bloc/bloc.dart';
@@ -25,7 +25,23 @@ void callbackDispatcher() {
         var battery = Battery();
         var batlevel = await battery.batteryLevel;
         final urlFinal = inputData!["string"] + batlevel.toString();
-        await repo.getBattery(urlFinal);
+        var sock = await Socket.connect("127.0.0.1", 8124,
+            timeout: Duration(seconds: 5));
+        sock.write("loading");
+        try {
+          String result = await repo.getBattery(urlFinal);
+          if (result == "OK") {
+            sock.write("good");
+          } else {
+            sock.write("warning");
+          }
+          sock.close();
+        } catch (e) {
+          print(e);
+          sock.write("error");
+          sock.close();
+          return Future.error("Can't establish connection");
+        }
         break;
     }
     return Future.value(true);
@@ -36,6 +52,7 @@ final BatteryRepository repo = BatteryRepository(api: ServerAPI(http.Client()));
 
 class TestCubit extends Cubit<TestState> {
 
+  var serverSocket;
   TestCubit() : super(TestState("", Colors.grey));
 
   urlChanged(String url) {
@@ -57,32 +74,62 @@ class TestCubit extends Cubit<TestState> {
       callbackDispatcher,
       isInDebugMode: false,
     );
-    state.status = Colors.blue;
-    emit(state);
-    try {
-      Workmanager().registerPeriodicTask("1", fetchBackground, inputData: {
-        'string': state.path,
-      });
+    Workmanager().registerPeriodicTask("1", fetchBackground,
+        backoffPolicy: BackoffPolicy.exponential,
+        inputData: {
+          'string': state.path,
+        });
+    Workmanager().registerPeriodicTask("2", fetchBackground,
+        initialDelay: const Duration(minutes: 5),
+        inputData: {
+          'string': state.path,
+        });
+    Workmanager().registerPeriodicTask("3", fetchBackground,
+        initialDelay: const Duration(minutes: 10),
+        inputData: {
+          'string': state.path,
+        });
+    serverSocket = await ServerSocket.bind('127.0.0.1', 8124, shared: true);
+    await serverSocket.listen(handleClient);
+  }
 
-      Workmanager().registerPeriodicTask("2", fetchBackground,
-          initialDelay: const Duration(minutes: 5),
-          inputData: {
-            'string': state.path,
-          });
-      Workmanager().registerPeriodicTask("3", fetchBackground,
-          initialDelay: const Duration(minutes: 10),
-          inputData: {
-            'string': state.path,
-          });
-    } catch (e) {
-      state.status = Colors.red;
-      emit(state);
-    }
-    state.status = Colors.green;
-    emit(state);
+  void handleClient(Socket client) {
+    var clientSocket = client;
+
+    clientSocket.listen((onData) {
+      String status = String.fromCharCodes(onData).trim();
+      print(status);
+      switch (status) {
+        case "loading":
+          {
+            emit(TestState("", Colors.blue));
+            break;
+          }
+        case "good":
+          {
+            emit(TestState("", Colors.green));
+
+            break;
+          }
+        case "warning":
+          {
+            emit(TestState("", Colors.orangeAccent));
+            break;
+          }
+        case "error":
+          {
+            emit(TestState("", Colors.red));
+            break;
+          }
+      }
+    });
+    return;
   }
 
   cancel() async {
+    await serverSocket.close();
     await Workmanager().cancelAll();
+    state.status = Colors.grey;
+    emit(state);
   }
 }

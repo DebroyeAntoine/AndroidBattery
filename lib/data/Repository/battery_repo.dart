@@ -8,7 +8,12 @@ class BatteryRepository{
   BatteryRepository({required this.api});
 
   Future<dynamic> getBattery(String url) async{
-    final Response rawStatus = await api.getRawCode(url);
+    final Response rawStatus;
+    try {
+      rawStatus = await api.getRawCode(url);
+    }catch(e){
+      rethrow;
+    }
 
     final batt = Battery2.fromJson(rawStatus);
     return batt;
