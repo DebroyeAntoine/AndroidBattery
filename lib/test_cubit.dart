@@ -6,6 +6,7 @@ import 'package:bloc/bloc.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:workmanager/workmanager.dart';
 
@@ -42,7 +43,16 @@ class TestCubit extends Cubit<TestState> {
   }
 
   validate() async {
+    final SharedPreferences _prefs = await SharedPreferences.getInstance();
+    if (state.path != "") {
+      _prefs.setString('url', state.path);
+    }
+    else{
+      state.path = _prefs.getString('url')!;
+    }
+
     WidgetsFlutterBinding.ensureInitialized();
+    await Workmanager().cancelAll();
     await Workmanager().initialize(
       callbackDispatcher,
       isInDebugMode: false,

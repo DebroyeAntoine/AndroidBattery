@@ -1,8 +1,10 @@
+
 import 'package:batt/test_cubit.dart';
+import 'package:flutter/cupertino.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:toggle_switch/toggle_switch.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,8 +30,29 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatelessWidget {
-  MyHomePage({Key? key}) : super(key: key);
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({Key? key}) : super(key: key);
+
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  bool _sw_value = false;
+  TextEditingController _controller = TextEditingController(text: "url");
+
+  Future<Null> tmp() async{
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _controller = TextEditingController(text: prefs.getString("url"));
+    });
+  }
+
+  @override
+  void initState(){
+    super.initState();
+    tmp();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,28 +64,31 @@ class MyHomePage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              TextFormField(
-                      decoration: const InputDecoration(hintText: "url"),
-                      maxLines: null,
-                      keyboardType: TextInputType.url,
-                      onChanged: (url) =>
-                          context.read<TestCubit>().urlChanged(url),
+              TextField(
+                controller: _controller,
+                maxLines: null,
+                keyboardType: TextInputType.url,
+                onChanged: (url) =>
+                    context.read<TestCubit>().urlChanged(url),
               ),
 
               const SizedBox(
                 height: 50,
               ),
-              ToggleSwitch(
-                initialLabelIndex: 0,
-                totalSwitches: 2,
-                labels: const ['Off', 'Start'],
-                onToggle: (index) {
-                  if (index == 1) {
-                    BlocProvider.of<TestCubit>(context).validate();
-                  } else {
-                    BlocProvider.of<TestCubit>(context).cancel();
+              CupertinoSwitch(
+                  activeColor: Colors.cyanAccent,
+                  value: _sw_value,
+                  onChanged: (value){
+                    setState(() {
+                      _sw_value = value;
+                    });
+                    if (value == true){
+                      BlocProvider.of<TestCubit>(context).validate();
+                    }
+                    else {
+                      BlocProvider.of<TestCubit>(context).cancel();
+                    }
                   }
-                },
               ),
             ],
           ),
