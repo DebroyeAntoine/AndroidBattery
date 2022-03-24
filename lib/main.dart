@@ -64,6 +64,11 @@ class _MyHomePageState extends State<MyHomePage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Text("You have to enter the url you want to connect"
+                  "and replace the battery value by \$battery"),
+              const SizedBox(
+                height: 50,
+              ),
               TextField(
                 controller: _controller,
                 maxLines: null,
