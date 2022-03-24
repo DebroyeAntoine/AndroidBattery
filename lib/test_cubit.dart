@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:bloc/bloc.dart';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,9 +23,10 @@ void callbackDispatcher() {
       case fetchBackground:
         var battery = Battery();
         var batlevel = await battery.batteryLevel;
-        final urlFinal = inputData!["string"] + batlevel.toString();
+        final urlFinal = inputData!["string"].replaceAll(
+            r"$battery", batlevel.toString());
         var sock = await Socket.connect("127.0.0.1", 8124,
-            timeout: Duration(seconds: 5));
+            timeout: const Duration(seconds: 5));
         sock.write("loading");
         try {
           String result = await repo.getBattery(urlFinal);
@@ -98,7 +98,6 @@ class TestCubit extends Cubit<TestState> {
 
     clientSocket.listen((onData) {
       String status = String.fromCharCodes(onData).trim();
-      print(status);
       switch (status) {
         case "loading":
           {
@@ -129,7 +128,6 @@ class TestCubit extends Cubit<TestState> {
   cancel() async {
     await serverSocket.close();
     await Workmanager().cancelAll();
-    state.status = Colors.grey;
-    emit(state);
+    emit(TestState("", Colors.grey));
   }
 }
